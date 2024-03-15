@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+static const int SCREEN_W = 800;
+static const int SCREEN_H = 600;
 static const int BLOCK_SIZE = 20; 
 
 typedef enum {
@@ -18,6 +20,7 @@ typedef struct {
 
 typedef struct {
   Block* body;
+  Block* head;
   int size;
   int capacity;
 } Snake;
@@ -26,7 +29,8 @@ Snake initSnake() {
   Snake s;
 
   s.body = malloc(32 * sizeof(Block));
-  s.body[0] = (Block) {0, 0, dRIGHT};
+  s.head = &s.body[0];
+  *s.head = (Block) {0, 0, dRIGHT};
   s.size = 1;
   s.capacity = 32;
 
@@ -54,8 +58,8 @@ void updateSnake(Snake* s) {
     s->body[s->size].direction = s->body[s->size-1].direction;
   }
 
-  s->body[0].x += DIRECTIONS[s->body[0].direction][0] * BLOCK_SIZE;
-  s->body[0].y += DIRECTIONS[s->body[0].direction][1] * BLOCK_SIZE;
+  s->head->x += DIRECTIONS[s->head->direction][0] * BLOCK_SIZE;
+  s->head->y += DIRECTIONS[s->head->direction][1] * BLOCK_SIZE;
 }
 
 typedef struct {
@@ -71,10 +75,10 @@ typedef struct {
   EventCallback callback;
 } KeyEvent;
 
-void moveLeft(State* s)   { if (s->snake.body[0].direction != dRIGHT) s->snake.body[0].direction = dLEFT; }
-void moveRight(State* s)  { if (s->snake.body[0].direction != dLEFT) s->snake.body[0].direction = dRIGHT; }
-void moveUp(State* s)     { if (s->snake.body[0].direction != dDOWN) s->snake.body[0].direction = dUP; }
-void moveDown(State* s)   { if (s->snake.body[0].direction != dUP) s->snake.body[0].direction = dDOWN; }
+void moveLeft(State* s)   { if (s->snake.head->direction != dRIGHT) s->snake.head->direction = dLEFT; }
+void moveRight(State* s)  { if (s->snake.head->direction != dLEFT) s->snake.head->direction = dRIGHT; }
+void moveUp(State* s)     { if (s->snake.head->direction != dDOWN) s->snake.head->direction = dUP; }
+void moveDown(State* s)   { if (s->snake.head->direction != dUP) s->snake.head->direction = dDOWN; }
 void growInPlace(State *s)   { growSnake(&s->snake); }
 
 typedef enum {
@@ -112,31 +116,43 @@ Block spawnApple(Snake s) {
       }
     }
   } while (true);
-
-  return (Block) {0};
 }
 
-bool isSnakeCollidingWithItself(Snake s) {
-  for (int i=1; i<s.size; i++) {
-    if (s.body[0].x == s.body[i].x && s.body[0].y == s.body[i].y) return true;
+bool isSnakeCollidingWithItself(State s) {
+  for (int i=1; i<s.snake.size; i++) {
+    if (s.snake.head->x == s.snake.body[i].x && s.snake.head->y == s.snake.body[i].y) 
+      return true;
   }
 
   return false;
 }
 
 bool isSnakeCollidingWithApple(State s) {
-  return s.snake.body[0].x == s.apple.x && s.snake.body[0].y == s.apple.y;
+  return s.snake.head->x == s.apple.x && s.snake.head->y == s.apple.y;
+}
+
+bool isSnakeCollidingWithWalls(State s) {
+  return s.snake.head->x < 0 || s.snake.head->x >= SCREEN_W || 
+    s.snake.head->y < 0 || s.snake.head->y >= SCREEN_H;
+}
+
+void initState(State* s) {
+  free(s->snake.body);
+  
+  Snake snake = initSnake();
+  Block apple = spawnApple(snake);
+  s->snake = snake;
+  s->apple = apple;
 }
 
 int main() {
-  InitWindow(800, 600, "Snake");
+  InitWindow(SCREEN_W, SCREEN_H, "Snake");
   SetTargetFPS(30);
 
   static const float GAME_DELAY = 0.075;
 
-  Snake snake = initSnake();
-  Block apple = spawnApple(snake);
-  State gameState = {snake, apple};
+  State gameState = {0};
+  initState(&gameState);
   float timer = 0;
 
   while( !WindowShouldClose() ) {
@@ -145,7 +161,8 @@ int main() {
     if (timer >= GAME_DELAY) {
       timer -= GAME_DELAY;
       updateSnake(&gameState.snake);
-      if (isSnakeCollidingWithItself(gameState.snake)) return 1;
+      if (isSnakeCollidingWithItself(gameState) || isSnakeCollidingWithWalls(gameState))
+        initState(&gameState);
     }
 
     ClearBackground(BLACK);
