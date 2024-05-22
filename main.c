@@ -30,8 +30,10 @@ Snake initSnake() {
 
   s.body = malloc(32 * sizeof(Block));
   s.head = &s.body[0];
-  *s.head = (Block) {0, 0, dRIGHT};
-  s.size = 1;
+  *s.head = (Block) {SCREEN_W / 2, SCREEN_H / 2, dRIGHT};
+  s.body[1] = (Block) {s.head->x - 1, s.head->y, dRIGHT};
+  s.body[2] = (Block) {s.head->x - 2, s.head->y, dRIGHT};
+  s.size = 3;
   s.capacity = 32;
 
   return s;
@@ -76,10 +78,10 @@ typedef struct {
 } KeyEvent;
 
 void moveLeft(State* s)   { if (s->snake.head->direction != dRIGHT) s->snake.head->direction = dLEFT; }
-void moveRight(State* s)  { if (s->snake.head->direction != dLEFT) s->snake.head->direction = dRIGHT; }
-void moveUp(State* s)     { if (s->snake.head->direction != dDOWN) s->snake.head->direction = dUP; }
-void moveDown(State* s)   { if (s->snake.head->direction != dUP) s->snake.head->direction = dDOWN; }
-void growInPlace(State *s)   { growSnake(&s->snake); }
+void moveRight(State* s)  { if (s->snake.head->direction != dLEFT)  s->snake.head->direction = dRIGHT; }
+void moveUp(State* s)     { if (s->snake.head->direction != dDOWN)  s->snake.head->direction = dUP; }
+void moveDown(State* s)   { if (s->snake.head->direction != dUP)    s->snake.head->direction = dDOWN; }
+void growInPlace(State *s) { growSnake(&s->snake); }
 
 typedef enum {
   kLEFT, kRIGHT, kUP, kDOWN, rSPACE, KEYS
@@ -105,17 +107,22 @@ void handleInput(State* s) {
 
 Block spawnApple(Snake s) {
   srand(time(NULL));
- 
+
+  bool valid = true; 
+  int x, y;
   do {
-    int x = (int)( rand() % 800 ) / BLOCK_SIZE * BLOCK_SIZE;
-    int y = (int)( rand() % 600 ) / BLOCK_SIZE * BLOCK_SIZE;
+    valid = true;
+    x = ( rand() % SCREEN_W ) / BLOCK_SIZE * BLOCK_SIZE;
+    y = ( rand() % SCREEN_H ) / BLOCK_SIZE * BLOCK_SIZE;
 
     for (int i=0; i<s.size; i++) {
-      if (s.body[i].x != x && s.body[i].y != y) {
-        return (Block) {x, y, dNONE};
+      if (s.body[i].x == x && s.body[i].y == y) {
+        valid = false;
       }
     }
-  } while (true);
+  } while (!valid);
+
+  return (Block) {x, y, dNONE};
 }
 
 bool isSnakeCollidingWithItself(State s) {

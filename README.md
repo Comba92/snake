@@ -1,3 +1,5 @@
+![preview](preview.gif)
+
 # Build
 This project depends on [raylib](https://github.com/raysan5/raylib).
 
